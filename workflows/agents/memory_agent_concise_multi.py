@@ -637,7 +637,8 @@ class ConciseMemoryAgent:
             ]
             openai_messages.extend(summary_messages)
 
-            model = self.default_models.get(client_type, self.default_models.get("openai", "o3-mini"))
+            fallback_model = "openrouter/auto" if client_type == "openrouter" else "o3-mini"
+            model = self.default_models.get(client_type, self.default_models.get("openai", fallback_model))
 
             # Try max_tokens and temperature first, fallback to max_completion_tokens without temperature if unsupported
             try:

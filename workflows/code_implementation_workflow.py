@@ -1070,8 +1070,9 @@ Requirements:
         retry_delay = 2  # seconds
 
         # Use implementation-specific model for code generation
+        fallback_model = "openrouter/auto" if provider == "openrouter" else "o3-mini"
         impl_model = self.default_models.get(
-            f"{provider}_implementation", self.default_models.get(provider, "o3-mini")
+            f"{provider}_implementation", self.default_models.get(provider, fallback_model)
         )
         self.logger.info(f"🔧 Code generation using model: {impl_model}")
 

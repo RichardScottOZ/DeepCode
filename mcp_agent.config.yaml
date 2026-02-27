@@ -103,9 +103,9 @@ mcp:
       env:
         PYTHONPATH: .
 # LLM Provider Priority (选择使用哪个LLM / Choose which LLM to use)
-# Options: "anthropic", "google", "openai"
+# Options: "anthropic", "google", "openai", "openrouter"
 # If not set or provider unavailable, will fallback to first available provider
-llm_provider: "openai"  # 设置为 "google", "anthropic", 或 "openai"
+llm_provider: "openai"  # 设置为 "google", "anthropic", "openai", 或 "openrouter"
 
 #openrouter can be used here and openai professional key
 openai:
@@ -116,6 +116,12 @@ openai:
   reasoning_effort: low  # Only for thinking models
   max_tokens_policy: adaptive
   retry_max_tokens: 32768
+
+# OpenRouter (access multiple models via one key - https://openrouter.ai)
+openrouter:
+  default_model: "openrouter/auto"
+  planning_model: "openrouter/auto"
+  implementation_model: "openrouter/auto"
 
 # Provider configurations
 # default_model is used by mcp_agent for planning/analysis phases

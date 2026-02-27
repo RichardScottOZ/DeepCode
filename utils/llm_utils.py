@@ -21,12 +21,13 @@ def get_api_keys(secrets_path: str = "mcp_agent.secrets.yaml") -> Dict[str, str]
     - GOOGLE_API_KEY or GEMINI_API_KEY
     - ANTHROPIC_API_KEY
     - OPENAI_API_KEY
+    - OPENROUTER_API_KEY
 
     Args:
         secrets_path: Path to the secrets YAML file
 
     Returns:
-        Dict with 'google', 'anthropic', 'openai' keys
+        Dict with 'google', 'anthropic', 'openai', 'openrouter' keys
     """
     secrets = {}
     if os.path.exists(secrets_path):
@@ -51,6 +52,11 @@ def get_api_keys(secrets_path: str = "mcp_agent.secrets.yaml") -> Dict[str, str]
             or os.environ.get("OPENAI_API_KEY")
             or ""
         ).strip(),
+        "openrouter": (
+            secrets.get("openrouter", {}).get("api_key", "")
+            or os.environ.get("OPENROUTER_API_KEY")
+            or ""
+        ).strip(),
     }
 
 
@@ -62,6 +68,7 @@ def load_api_config(secrets_path: str = "mcp_agent.secrets.yaml") -> Dict[str, A
     - GOOGLE_API_KEY or GEMINI_API_KEY
     - ANTHROPIC_API_KEY
     - OPENAI_API_KEY
+    - OPENROUTER_API_KEY
 
     Args:
         secrets_path: Path to the secrets YAML file
@@ -102,6 +109,10 @@ def _get_llm_class(provider: str) -> Type[Any]:
         from mcp_agent.workflows.llm.augmented_llm_google import GoogleAugmentedLLM
 
         return GoogleAugmentedLLM
+    elif provider == "openrouter":
+        from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
+
+        return OpenAIAugmentedLLM
     else:
         raise ValueError(f"Unknown provider: {provider}")
 
@@ -127,6 +138,7 @@ def get_preferred_llm_class(config_path: str = "mcp_agent.secrets.yaml") -> Type
         google_key = keys["google"]
         anthropic_key = keys["anthropic"]
         openai_key = keys["openai"]
+        openrouter_key = keys["openrouter"]
 
         # Read user preference from main config (derive path from secrets path)
         secrets_dir = os.path.dirname(os.path.abspath(config_path))
@@ -142,6 +154,7 @@ def get_preferred_llm_class(config_path: str = "mcp_agent.secrets.yaml") -> Type
             "anthropic": (anthropic_key, "AnthropicAugmentedLLM"),
             "google": (google_key, "GoogleAugmentedLLM"),
             "openai": (openai_key, "OpenAIAugmentedLLM"),
+            "openrouter": (openrouter_key, "OpenAIAugmentedLLM"),
         }
 
         # Try user's preferred provider first
@@ -231,12 +244,16 @@ def get_default_models(config_path: str = "mcp_agent.config.yaml"):
             anthropic_config = config.get("anthropic") or {}
             openai_config = config.get("openai") or {}
             google_config = config.get("google") or {}
+            openrouter_config = config.get("openrouter") or {}
 
             anthropic_model = anthropic_config.get(
                 "default_model", "claude-sonnet-4-20250514"
             )
             openai_model = openai_config.get("default_model", "o3-mini")
             google_model = google_config.get("default_model", "gemini-2.0-flash")
+            openrouter_model = openrouter_config.get(
+                "default_model", "openrouter/auto"
+            )
 
             # Phase-specific models (fall back to default if not specified)
             # Google
@@ -254,17 +271,27 @@ def get_default_models(config_path: str = "mcp_agent.config.yaml"):
             openai_implementation = openai_config.get(
                 "implementation_model", openai_model
             )
+            # OpenRouter
+            openrouter_planning = openrouter_config.get(
+                "planning_model", openrouter_model
+            )
+            openrouter_implementation = openrouter_config.get(
+                "implementation_model", openrouter_model
+            )
 
             return {
                 "anthropic": anthropic_model,
                 "openai": openai_model,
                 "google": google_model,
+                "openrouter": openrouter_model,
                 "google_planning": google_planning,
                 "google_implementation": google_implementation,
                 "anthropic_planning": anthropic_planning,
                 "anthropic_implementation": anthropic_implementation,
                 "openai_planning": openai_planning,
                 "openai_implementation": openai_implementation,
+                "openrouter_planning": openrouter_planning,
+                "openrouter_implementation": openrouter_implementation,
             }
         else:
             print(f"Config file {config_path} not found, using default models")
@@ -280,6 +307,7 @@ def _get_fallback_models():
     google = "gemini-2.0-flash"
     anthropic = "claude-sonnet-4-20250514"
     openai = "o3-mini"
+    openrouter = "openrouter/auto"
     return {
         "google": google,
         "google_planning": google,
@@ -290,6 +318,9 @@ def _get_fallback_models():
         "openai": openai,
         "openai_planning": openai,
         "openai_implementation": openai,
+        "openrouter": openrouter,
+        "openrouter_planning": openrouter,
+        "openrouter_implementation": openrouter,
     }
 
 

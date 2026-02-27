@@ -1388,7 +1388,7 @@ class ConciseMemoryAgent:
 
             return {"content": content}
 
-        elif client_type == "openai":
+        elif client_type in ("openai", "openrouter"):
             openai_messages = [
                 {
                     "role": "system",
@@ -1397,10 +1397,12 @@ class ConciseMemoryAgent:
             ]
             openai_messages.extend(summary_messages)
 
+            model = self.default_models.get(client_type, self.default_models.get("openai", "o3-mini"))
+
             # Try max_tokens and temperature first, fallback to max_completion_tokens without temperature if unsupported
             try:
                 response = await client.chat.completions.create(
-                    model=self.default_models["openai"],
+                    model=model,
                     messages=openai_messages,
                     max_tokens=5000,
                     temperature=0.2,
@@ -1409,7 +1411,7 @@ class ConciseMemoryAgent:
                 if "max_tokens" in str(e) and "max_completion_tokens" in str(e):
                     # Retry with max_completion_tokens and no temperature for models that require it
                     response = await client.chat.completions.create(
-                        model=self.default_models["openai"],
+                        model=model,
                         messages=openai_messages,
                         max_completion_tokens=5000,
                     )

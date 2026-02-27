@@ -58,6 +58,10 @@ export default function SettingsPage() {
       name: 'OpenAI',
       description: 'Uses GPT models for code generation',
     },
+    openrouter: {
+      name: 'OpenRouter',
+      description: 'Access multiple models via a single API key',
+    },
   };
 
   if (isLoading) {

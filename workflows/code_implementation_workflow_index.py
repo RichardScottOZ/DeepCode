@@ -503,6 +503,7 @@ Requirements:
         anthropic_key = self.api_config.get("anthropic", {}).get("api_key", "")
         openai_key = self.api_config.get("openai", {}).get("api_key", "")
         google_key = self.api_config.get("google", {}).get("api_key", "")
+        openrouter_key = self.api_config.get("openrouter", {}).get("api_key", "")
 
         # Read user preference from main config
         preferred_provider = None
@@ -611,11 +612,56 @@ Requirements:
                 self.logger.warning(f"OpenAI API unavailable: {e}")
                 return None
 
+        async def init_openrouter():
+            if not (openrouter_key and openrouter_key.strip()):
+                return None
+            try:
+                from openai import AsyncOpenAI
+
+                openrouter_config = self.api_config.get("openrouter", {})
+                base_url = openrouter_config.get(
+                    "base_url", "https://openrouter.ai/api/v1"
+                )
+
+                client = AsyncOpenAI(api_key=openrouter_key, base_url=base_url)
+
+                model_name = self.default_models.get(
+                    "openrouter", "openrouter/auto"
+                )
+
+                try:
+                    await client.chat.completions.create(
+                        model=model_name,
+                        max_tokens=20,
+                        messages=[{"role": "user", "content": "test"}],
+                    )
+                except Exception as e:
+                    if "max_tokens" in str(e) and "max_completion_tokens" in str(e):
+                        self.logger.info(
+                            f"Model {model_name} requires max_completion_tokens parameter"
+                        )
+                        await client.chat.completions.create(
+                            model=model_name,
+                            max_completion_tokens=20,
+                            messages=[{"role": "user", "content": "test"}],
+                        )
+                    else:
+                        raise
+                self.logger.info(
+                    f"Using OpenRouter API with model: {model_name}"
+                )
+                self.logger.info(f"Using OpenRouter base URL: {base_url}")
+                return client, "openrouter"
+            except Exception as e:
+                self.logger.warning(f"OpenRouter API unavailable: {e}")
+                return None
+
         # Map providers to their init functions
         provider_init_map = {
             "anthropic": init_anthropic,
             "google": init_google,
             "openai": init_openai,
+            "openrouter": init_openrouter,
         }
 
         # Try preferred provider first
@@ -650,9 +696,10 @@ Requirements:
                 return await self._call_anthropic_with_tools(
                     client, system_message, messages, tools, max_tokens
                 )
-            elif client_type == "openai":
+            elif client_type in ("openai", "openrouter"):
                 return await self._call_openai_with_tools(
-                    client, system_message, messages, tools, max_tokens
+                    client, system_message, messages, tools, max_tokens,
+                    provider=client_type,
                 )
             elif client_type == "google":
                 return await self._call_google_with_tools(
@@ -988,9 +1035,10 @@ Requirements:
         return result
 
     async def _call_openai_with_tools(
-        self, client, system_message, messages, tools, max_tokens
+        self, client, system_message, messages, tools, max_tokens,
+        provider="openai",
     ):
-        """Call OpenAI API with robust JSON error handling and retry mechanism"""
+        """Call OpenAI-compatible API with robust JSON error handling and retry mechanism"""
         openai_tools = []
         for tool in tools:
             openai_tools.append(
@@ -1012,8 +1060,9 @@ Requirements:
         retry_delay = 2  # seconds
 
         # Use implementation-specific model for code generation
+        fallback_model = "openrouter/auto" if provider == "openrouter" else "o3-mini"
         impl_model = self.default_models.get(
-            "openai_implementation", self.default_models["openai"]
+            f"{provider}_implementation", self.default_models.get(provider, fallback_model)
         )
         self.logger.info(f"🔧 Code generation using model: {impl_model}")
 
